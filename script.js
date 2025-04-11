@@ -44,83 +44,185 @@ const themes = {
   }
 };
 
-// Load the local CSV file
-d3.csv("MovieDataClean.csv").then(loadedData => {
-  data = loadedData;
-  totalPages = Math.ceil(data.length / rowsPerPage);
-  
-  updateSlider();
-  renderTable();
-  createVisualizations();
-}).catch(error => {
-  console.error("Error loading data:", error);
+// Load and process data
+async function loadData() {
+    try {
+        console.log("Starting data load...");
+        
+        // Load first part
+        console.log("Loading first part...");
+        const response1 = await fetch("MovieDataClean1.csv");
+        if (!response1.ok) throw new Error(`HTTP error! status: ${response1.status}`);
+        const csvContent1 = await response1.text();
+        const parsedData1 = d3.csvParse(csvContent1);
+        console.log("First part loaded:", parsedData1.length, "rows");
+
+        // Load second part
+        console.log("Loading second part...");
+        const response2 = await fetch("MovieDataClean2.csv");
+        if (!response2.ok) throw new Error(`HTTP error! status: ${response2.status}`);
+        const csvContent2 = await response2.text();
+        const parsedData2 = d3.csvParse(csvContent2);
+        console.log("Second part loaded:", parsedData2.length, "rows");
+
+        // Combine data
+        data = [...parsedData1, ...parsedData2];
+        console.log("Total data loaded:", data.length, "rows");
+        
+        // Initialize visualizations
+        if (data && data.length > 0) {
+            console.log("Initializing visualizations...");
+            renderTable();
+            createVisualizations();
+            console.log("Visualizations initialized");
+        } else {
+            console.error("No data available after loading");
+        }
+    } catch (error) {
+        console.error("Error loading data:", error);
+        const errorDiv = document.createElement("div");
+        errorDiv.className = "error-message";
+        errorDiv.textContent = `Error loading data: ${error.message}`;
+        document.body.appendChild(errorDiv);
+    }
+}
+
+// Wait for DOM to be fully loaded before initializing
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM loaded, starting initialization...");
+    
+    // Add event listeners for pagination
+    const prevButton = document.getElementById("prev");
+    const nextButton = document.getElementById("next");
+    const pageSlider = document.getElementById("page-slider");
+    
+    if (prevButton) {
+        prevButton.addEventListener("click", () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        });
+    }
+    
+    if (nextButton) {
+        nextButton.addEventListener("click", () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        });
+    }
+    
+    if (pageSlider) {
+        pageSlider.addEventListener("input", function() {
+            currentPage = parseInt(this.value);
+            renderTable();
+        });
+    }
+    
+    // Start loading the data
+    loadData();
 });
 
 function updateSlider() {
-  const slider = d3.select("#page-slider");
-  slider.attr("max", totalPages);
-  slider.on("input", function() {
-    currentPage = +this.value;
-    renderTable();
-  });
+    const slider = d3.select("#page-slider");
+    if (slider.empty()) return;
+    
+    slider.attr("max", totalPages);
+    slider.on("input", function() {
+        currentPage = +this.value;
+        renderTable();
+    });
 }
 
 function renderTable() {
-  const start = (currentPage - 1) * rowsPerPage;
-  const end = start + rowsPerPage;
-  const pageData = data.slice(start, end);
+    try {
+        console.log("Starting table render...");
+        console.log("Data length:", data ? data.length : 0);
+        
+        if (!data || data.length === 0) {
+            console.error("No data available to render table");
+            return;
+        }
 
-  const container = d3.select("#table-container");
-  const table = container.select("table");
-  const thead = table.select("thead");
-  const tbody = table.select("tbody");
+        // Get table elements
+        const tableContainer = document.getElementById("table-container");
+        const movieTable = document.getElementById("movie-table");
+        
+        if (!tableContainer || !movieTable) {
+            console.error("Table elements not found in DOM");
+            return;
+        }
 
-  // Clear previous content
-  thead.html("");
-  tbody.html("");
+        // Clear existing content
+        movieTable.innerHTML = '';
 
-  if (pageData.length === 0) {
-    tbody.append("tr")
-      .append("td")
-      .attr("colspan", Object.keys(pageData[0]).length)
-      .text("No data available.");
-    return;
-  }
+        // Create header row
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        
+        // Get headers from first data item
+        const headers = Object.keys(data[0]);
+        headers.forEach(header => {
+            const th = document.createElement('th');
+            th.textContent = header.charAt(0).toUpperCase() + header.slice(1).replace('_', ' ');
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        movieTable.appendChild(thead);
 
-  // Table headers
-  thead.append("tr")
-    .selectAll("th")
-    .data(Object.keys(pageData[0]))
-    .enter()
-    .append("th")
-    .text(d => d)
-    .style("text-transform", "capitalize");
+        // Create body
+        const tbody = document.createElement('tbody');
+        
+        // Get current page data
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const pageData = data.slice(start, end);
+        
+        console.log(`Rendering page ${currentPage} (rows ${start} to ${end})`);
 
-  // Table rows
-  const rows = tbody.selectAll("tr")
-    .data(pageData)
-    .enter()
-    .append("tr");
+        // Create data rows
+        pageData.forEach(row => {
+            const tr = document.createElement('tr');
+            
+            headers.forEach(header => {
+                const td = document.createElement('td');
+                let value = row[header];
+                
+                // Format values
+                if (header === 'budget' || header === 'revenue') {
+                    value = "$" + Number(value).toLocaleString();
+                } else if (header === 'vote_average') {
+                    value = Number(value).toFixed(1);
+                }
+                
+                td.textContent = value;
+                tr.appendChild(td);
+            });
+            
+            tbody.appendChild(tr);
+        });
+        
+        movieTable.appendChild(tbody);
 
-  rows.selectAll("td")
-    .data(d => Object.values(d))
-    .enter()
-    .append("td")
-    .text(d => {
-      // Format numbers with commas
-      if (!isNaN(d) && d !== "") {
-        return Number(d).toLocaleString();
-      }
-      return d;
-    });
-
-  // Update pagination text and slider
-  d3.select("#page-info").text(`Page ${currentPage} of ${totalPages}`);
-  d3.select("#page-slider").property("value", currentPage);
-
-  // Update button states
-  d3.select("#prev").property("disabled", currentPage === 1);
-  d3.select("#next").property("disabled", currentPage === totalPages);
+        // Update pagination info
+        totalPages = Math.ceil(data.length / rowsPerPage);
+        document.getElementById("page-info").textContent = `Page ${currentPage} of ${totalPages}`;
+        
+        // Update slider
+        const slider = document.getElementById("page-slider");
+        slider.max = totalPages;
+        slider.value = currentPage;
+        
+        // Update button states
+        document.getElementById("prev").disabled = currentPage === 1;
+        document.getElementById("next").disabled = currentPage === totalPages;
+        
+        console.log("Table render complete");
+    } catch (error) {
+        console.error("Error rendering table:", error);
+    }
 }
 
 function createVisualizations() {
