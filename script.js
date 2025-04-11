@@ -47,34 +47,25 @@ const themes = {
 // Load and process data
 async function loadData() {
     try {
-        console.log("Starting data load...");
-        
-        // Load first part
-        console.log("Loading first part...");
-        const response1 = await fetch("MovieDataClean1.csv");
+        // Load first part from GitHub
+        const response1 = await fetch("https://raw.githubusercontent.com/tblakearmstrong/DataVizFinalProject/refs/heads/main/MovieDataClean1.csv");
         if (!response1.ok) throw new Error(`HTTP error! status: ${response1.status}`);
         const csvContent1 = await response1.text();
         const parsedData1 = d3.csvParse(csvContent1);
-        console.log("First part loaded:", parsedData1.length, "rows");
 
-        // Load second part
-        console.log("Loading second part...");
-        const response2 = await fetch("MovieDataClean2.csv");
+        // Load second part from GitHub
+        const response2 = await fetch("https://raw.githubusercontent.com/tblakearmstrong/DataVizFinalProject/refs/heads/main/MovieDataClean2.csv");
         if (!response2.ok) throw new Error(`HTTP error! status: ${response2.status}`);
         const csvContent2 = await response2.text();
         const parsedData2 = d3.csvParse(csvContent2);
-        console.log("Second part loaded:", parsedData2.length, "rows");
 
         // Combine data
         data = [...parsedData1, ...parsedData2];
-        console.log("Total data loaded:", data.length, "rows");
         
         // Initialize visualizations
         if (data && data.length > 0) {
-            console.log("Initializing visualizations...");
             renderTable();
             createVisualizations();
-            console.log("Visualizations initialized");
         } else {
             console.error("No data available after loading");
         }
@@ -89,7 +80,6 @@ async function loadData() {
 
 // Wait for DOM to be fully loaded before initializing
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM loaded, starting initialization...");
     
     // Add event listeners for pagination
     const prevButton = document.getElementById("prev");
@@ -138,9 +128,6 @@ function updateSlider() {
 
 function renderTable() {
     try {
-        console.log("Starting table render...");
-        console.log("Data length:", data ? data.length : 0);
-        
         if (!data || data.length === 0) {
             console.error("No data available to render table");
             return;
@@ -179,8 +166,6 @@ function renderTable() {
         const start = (currentPage - 1) * rowsPerPage;
         const end = start + rowsPerPage;
         const pageData = data.slice(start, end);
-        
-        console.log(`Rendering page ${currentPage} (rows ${start} to ${end})`);
 
         // Create data rows
         pageData.forEach(row => {
@@ -218,8 +203,6 @@ function renderTable() {
         // Update button states
         document.getElementById("prev").disabled = currentPage === 1;
         document.getElementById("next").disabled = currentPage === totalPages;
-        
-        console.log("Table render complete");
     } catch (error) {
         console.error("Error rendering table:", error);
     }
